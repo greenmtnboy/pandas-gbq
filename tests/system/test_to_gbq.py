@@ -65,4 +65,3 @@ def test_include_project_name(
     pandas.testing.assert_series_equal(
         round_trip_data, input_series, check_exact=True
     )
-
