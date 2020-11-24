@@ -50,8 +50,7 @@ def test_float_round_trip(
 def test_include_project_name(
     method_under_test, random_dataset_id, bigquery_client
 ):
-    """Ensure that we can pass in a table identifier that includes a project.
-    """
+    """Ensure that we can pass in a table identifier that includes a project."""
 
     table_id = "{}.{}.int_round_trip".format(
         bigquery_client.project_id, random_dataset_id
@@ -70,8 +69,7 @@ def test_include_project_name(
 def test_include_project_name_failure(
     method_under_test, random_dataset_id, bigquery_client
 ):
-    """Ensure that we can pass in a table identifier that includes a project.
-    """
+    """Ensure that we can pass in a table identifier that includes a project."""
     with pytest.raises(gbq.GenericGBQException):
         table_id = "{}.{}.int_round_trip".format(
             "this_project_does_not_exist", random_dataset_id
