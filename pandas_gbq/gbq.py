@@ -780,6 +780,17 @@ def _cast_empty_df_dtypes(schema_fields, df):
     return df
 
 
+def _process_table_id(destination_table, project_id):
+    """Clean any backticks from the input string, and split into 3 parts if a project is provided
+    or two and the default billing project if not."""
+    destination_table = destination_table.replace("`", "")
+    if destination_table.count(".") == 2:
+        return destination_table.rsplit(".", 2)
+    else:
+        dataset_id, table_id = destination_table.rsplit(".", 1)
+        return project_id, dataset_id, table_id
+
+
 def read_gbq(
     query,
     project_id=None,
@@ -1147,13 +1158,10 @@ def to_gbq(
         private_key=private_key,
     )
     bqclient = connector.client
-    if destination_table.count(".") == 2:
-        table_project_id, dataset_id, table_id = destination_table.rsplit(
-            ".", 2
-        )
-    else:
-        dataset_id, table_id = destination_table.rsplit(".", 1)
-        table_project_id = project_id
+
+    table_project_id, dataset_id, table_id = _process_table_id(
+        destination_table, project_id
+    )
     default_schema = _generate_bq_schema(dataframe)
     if not table_schema:
         table_schema = default_schema
