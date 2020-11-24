@@ -79,4 +79,6 @@ def gbq_dataset(project, credentials):
 def gbq_table(project, credentials, random_dataset_id):
     from pandas_gbq import gbq
 
-    return gbq._Table(project, project, random_dataset_id, credentials=credentials)
+    return gbq._Table(
+        project, project, random_dataset_id, credentials=credentials
+    )
