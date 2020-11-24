@@ -701,9 +701,19 @@ class GbqConnector(object):
         fields_local = pandas_gbq.schema._clean_schema_fields(schema["fields"])
         return fields_remote == fields_local
 
-    def delete_and_recreate_table(self, dataset_id, table_id, table_schema):
+    def delete_and_recreate_table(
+        self,
+        table_project_id,
+        billing_project_id,
+        dataset_id,
+        table_id,
+        table_schema,
+    ):
         table = _Table(
-            self.project_id, dataset_id, credentials=self.credentials
+            table_project_id=table_project_id,
+            billing_project_id=billing_project_id,
+            dataset_id=dataset_id,
+            credentials=self.credentials,
         )
         table.delete(table_id)
         table.create(table_id, table_schema)
@@ -1175,8 +1185,9 @@ def to_gbq(
         table = bqclient.get_table(destination_table)
     except google_exceptions.NotFound:
         table_connector = _Table(
-            project_id,
-            dataset_id,
+            table_project_id=table_project_id,
+            billing_project_id=project_id,
+            dataset_id=dataset_id,
             location=location,
             credentials=connector.credentials,
         )
@@ -1193,7 +1204,11 @@ def to_gbq(
             )
         elif if_exists == "replace":
             connector.delete_and_recreate_table(
-                dataset_id, table_id, table_schema
+                table_project_id,
+                project_id,
+                dataset_id,
+                table_id,
+                table_schema,
             )
         elif if_exists == "append":
             if not pandas_gbq.schema.schema_is_subset(
@@ -1265,7 +1280,8 @@ def _generate_bq_schema(df, default_type="STRING"):
 class _Table(GbqConnector):
     def __init__(
         self,
-        project_id,
+        table_project_id,
+        billing_project_id,
         dataset_id,
         reauth=False,
         location=None,
@@ -1273,8 +1289,9 @@ class _Table(GbqConnector):
         private_key=None,
     ):
         self.dataset_id = dataset_id
+        self.table_project_id = table_project_id
         super(_Table, self).__init__(
-            project_id,
+            billing_project_id,
             reauth,
             location=location,
             credentials=credentials,
@@ -1296,7 +1313,9 @@ class _Table(GbqConnector):
         """
         from google.api_core.exceptions import NotFound
 
-        table_ref = self.client.dataset(self.dataset_id).table(table_id)
+        table_ref = self.client.dataset(
+            self.dataset_id, project=self.table_project_id
+        ).table(table_id)
         try:
             self.client.get_table(table_ref)
             return True
@@ -1324,16 +1343,21 @@ class _Table(GbqConnector):
                 "Table {0} already " "exists".format(table_id)
             )
 
-        if not _Dataset(self.project_id, credentials=self.credentials).exists(
-            self.dataset_id
-        ):
+        if not _Dataset(
+            dataset_project_id=self.table_project_id,
+            billing_project_id=self.project_id,
+            credentials=self.credentials,
+        ).exists(self.dataset_id):
             _Dataset(
-                self.project_id,
+                dataset_project_id=self.table_project_id,
+                billing_project_id=self.project_id,
                 credentials=self.credentials,
                 location=self.location,
             ).create(self.dataset_id)
 
-        table_ref = self.client.dataset(self.dataset_id).table(table_id)
+        table_ref = self.client.dataset(
+            self.dataset_id, project=self.table_project_id
+        ).table(table_id)
         table = Table(table_ref)
 
         schema = pandas_gbq.schema.add_default_nullable_mode(schema)
@@ -1360,7 +1384,9 @@ class _Table(GbqConnector):
         if not self.exists(table_id):
             raise NotFoundException("Table does not exist")
 
-        table_ref = self.client.dataset(self.dataset_id).table(table_id)
+        table_ref = self.client.dataset(
+            self.dataset_id, project=self.project_id
+        ).table(table_id)
         try:
             self.client.delete_table(table_ref)
         except NotFound:
@@ -1373,14 +1399,16 @@ class _Table(GbqConnector):
 class _Dataset(GbqConnector):
     def __init__(
         self,
-        project_id,
+        dataset_project_id,
+        billing_project_id,
         reauth=False,
         location=None,
         credentials=None,
         private_key=None,
     ):
+        self.dataset_project_id = dataset_project_id
         super(_Dataset, self).__init__(
-            project_id,
+            billing_project_id,
             reauth,
             credentials=credentials,
             location=location,
@@ -1403,7 +1431,11 @@ class _Dataset(GbqConnector):
         from google.api_core.exceptions import NotFound
 
         try:
-            self.client.get_dataset(self.client.dataset(dataset_id))
+            self.client.get_dataset(
+                self.client.dataset(
+                    dataset_id, project=self.dataset_project_id
+                )
+            )
             return True
         except NotFound:
             return False
@@ -1425,7 +1457,9 @@ class _Dataset(GbqConnector):
                 "Dataset {0} already " "exists".format(dataset_id)
             )
 
-        dataset = Dataset(self.client.dataset(dataset_id))
+        dataset = Dataset(
+            self.client.dataset(dataset_id, project=self.dataset_project_id)
+        )
 
         if self.location is not None:
             dataset.location = self.location
