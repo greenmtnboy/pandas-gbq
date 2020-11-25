@@ -920,7 +920,7 @@ class TestToGBQIntegration(object):
         # put here any instruction you want to be run *BEFORE* *EVERY* test is
         # executed.
         self.table = gbq._Table(
-            project, random_dataset_id, credentials=credentials
+            project, project, random_dataset_id, credentials=credentials
         )
         self.destination_table = "{}.{}".format(random_dataset_id, TABLE_ID)
         self.credentials = credentials
@@ -1565,7 +1565,7 @@ def test_create_table_data_dataset_does_not_exist(
 ):
     table_id = "test_create_table_data_dataset_does_not_exist"
     table_with_new_dataset = gbq._Table(
-        project, random_dataset_id, credentials=credentials
+        project, project, random_dataset_id, credentials=credentials
     )
     df = make_mixed_dataframe_v2(10)
     table_with_new_dataset.create(table_id, gbq._generate_bq_schema(df))
